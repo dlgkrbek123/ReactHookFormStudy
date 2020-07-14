@@ -1,0 +1,227 @@
+import React from "react";
+import { useForm } from "react-hook-form";
+
+export default function App() {
+  const { register, handleSubmit, watch, errors } = useForm();
+  const onSubmit = data => console.log(data);
+
+  console.log(watch("example")); // watch input value by passing the name of it
+
+  return (
+    {/* "handleSubmit" will validate your inputs before invoking "onSubmit" */}
+    <form onSubmit={handleSubmit(onSubmit)}>
+    {/* register your input into the hook by invoking the "register" function */}
+      <input name="example" defaultValue="test" ref={register} />
+      
+      {/* include validation with required or other standard HTML validation rules */}
+      <input name="exampleRequired" ref={register({ required: true })} />
+      {/* errors will return when field validation fails  */}
+      {errors.exampleRequired && <span>This field is required</span>}
+      
+      <input type="submit" />
+    </form>
+  );
+}
+
+-----------------------------------------------
+
+uncontrolled component를 hook에 register해야함
+이로써 컴포넌트의 값을 form validation과 제출에 활용 가능
+
+각 필드는 unique name을 key로써 가져야 한다.
+
+-----------------------------------------------
+
+이미 존재하는 html form validation 표준을 정렬해서
+form validation을 쉽게하게 한다.
+아래의 rule을 지원한다.
+
+required
+
+min
+max
+minLength
+maxLength
+
+pattern
+validate
+
+----------------------------------------------
+
+이미 존재하는 form에 통합하는것도 간단하다.
+존재하는 컴포넌트의 ref를 register
+
+const Input = ({ label, register, required }) => ( 
+  <>
+    <label>{label}</label>
+    <input name={label} ref={register({ required })} />
+  </>
+);
+
+// you can use React.forwardRef to pass the ref too
+const Select = React.forwardRef(({ label, register }, ref) => ( 
+  <>
+    <label>{label}</label>
+    <select name={label} ref={ref}>
+      <option value="20">20</option>
+      <option value="30">30</option>
+    </select>
+  </>
+));
+
+--------------------------------------------
+
+제어되는 input과 융합하기
+  React Hook Form은 제어되지않는 네이티브 html input을
+  감싸는게 기본적인 사용법이다. 그러나 외부에서 제공되는 input
+  라이브러리랑 같이 쓰이는 걸 막기는 어렵다.
+
+  wrapper component인 Controller를 사용해라
+  
+import React from "react";
+import { useForm, Controller } from "react-hook-form";
+import ReactSelect from "react-select";
+import { TextField, Checkbox } from "@material-ui/core";
+
+function App() {
+  const { handleSubmit, control, reset } = useForm();
+  const onSubmit = data => console.log(data);
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
+      {/* Option 1: pass a component to the Controller. */}
+      <Controller as={TextField} name="TextField" control={control} defaultValue="" />
+      
+      {/* Option 2: use render props to assign events and value */}
+      <Controller
+        name="MyCheckbox"
+        control={control}
+        defaultValue={false}
+        rules={{ required: true }}
+        render={props => <Checkbox {...props} />} // props contains: onChange, onBlur and value
+      />
+    </form>
+  );
+}
+
+----------------------------------------------------------------
+
+전역 상태와 통합하기
+  react-hook-form이 상태 관리에서 자유롭게 해주어도 떄떄로 
+  통합해야 함
+
+import React from "react";
+import { useForm } from "react-hook-form";
+import { connect } from "react-redux";
+import updateAction from "./actions";
+
+export default function App(props) {
+  const { register, handleSubmit, setValue } = useForm();
+  // Submit your data into Redux store
+  const onSubmit = data => props.updateAction(data);
+  
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <Input name="firstName" defaultValue={props.firstName} ref={register} />
+      <Input name="lastName" defaultValue={props.lastName} ref={register} />
+      <input type="submit" />
+    </form>
+  );
+}
+
+// Connect your component with redux
+connect(({ firstName, lastName }) => ({ firstName, lastName }), updateAction)(YourForm);
+
+----------------------------------------------------------------
+
+에러 다루기
+  errrors로 엘러를 다룰 수 있게 해줌
+  
+import React from "react";
+import { useForm } from "react-hook-form";
+
+export default function App() {
+  const { register, errors, handleSubmit } = useForm();
+  
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <Input name="firstName" ref={register({ required: true })} />
+      {errors.firstName && "First name is required"}
+      <Input name="lastName" ref={register({ required: true })} />
+      {errors.lastName && "Last name is required"}
+      <input type="submit" />
+    </form>
+  );
+}
+
+------------------------------------------------------------------
+
+yup같은 스키마 기반의 폼 validation을 지원한다.
+
+import React from "react";
+import { useForm } from "react-hook-form";
+import { yupResolver } from '@hookform/resolvers';
+import * as yup from "yup";
+
+const schema = yup.object().shape({
+  firstName: yup.string().required(),
+  age: yup.number().positive().integer().required(),
+});
+
+export default function App() {
+  const { register, handleSubmit, errors } = useForm({
+    resolver: yupResolver(schema)
+  });
+  const onSubmit = data => console.log(data);
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <input type="text" name="firstName" ref={register} />
+      <p>{errors.firstName?.message}</p>
+        
+      <input type="text" name="age" ref={register} />
+      <p>{errors.age?.message}</p>
+      
+      <input type="submit" />
+    </form>
+  );
+}
+
+------------------------------------------------------------------
+
+import React from "react";
+import { useForm } from "react-hook-form";
+
+export default function App() {
+  const { register, errors, handleSubmit } = useForm();
+  const onSubmit = data => console.log(data);
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <input name="singleErrorInput" ref={register({ required: true })} />
+      {errors.singleErrorInput && "Your input is required"}
+
+      {/* refer to the type of error to display message accordingly */}
+      <input
+        name="multipleErrorInput"
+        ref={register({ required: true, maxLength: 50 })}
+      />
+      {errors.multipleErrorInput?.type === "required" &&
+        "Your input is required"}
+      {errors.multipleErrorInput?.type === "maxLength" &&
+        "Your input exceed maxLength"}
+
+      {/* register with validation */}
+      <input type="number" name="numberInput" ref={register({ min: 50 })} />
+      {errors.numberInput && "Your input required to be more than 50"}
+
+      {/* register with validation and error message */}
+      <input
+        name="errorMessage"
+        ref={register({ required: "This is required" })}
+      />
+      {errors.errorMessage?.message}
+      <input type="submit" />
+    </form>
+  );
+}
